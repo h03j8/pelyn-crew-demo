@@ -13,7 +13,7 @@ export function ResponseCollection({result}:{result:Result}){
   controller.current=new AbortController();
   const timeout=setTimeout(()=>controller.current?.abort(),20000);
   try{
-   const response=await fetch('/api/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id.current,consent:true,input:result.draft}),signal:controller.current.signal});
+   const response=await fetch('/api/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:id.current,consent:true,input:result.draft,aiText:result.aiText,aiSignature:result.aiSignature}),signal:controller.current.signal});
    const data=await response.json().catch(()=>null);
    if(!response.ok||data?.saved!==true)throw new Error(data?.message||'응답 저장에 실패했습니다. 배포 환경과 저장소 연결을 확인해주세요.');
    setStatus('saved');setMessage('응답이 저장됐습니다. 참여해주셔서 감사합니다.');

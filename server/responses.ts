@@ -1,4 +1,5 @@
 import {analyze,validate,type Draft} from '../src/model.js';
+import {verifyResult} from './ai-proof.js';
 
 type Writer = (path:string,body:string)=>Promise<unknown>;
 const reply=(status:number,message:string)=>Response.json({message},{status,headers:{'Cache-Control':'no-store'}});
@@ -23,9 +24,13 @@ export function createHandler(write:Writer,isConfigured:()=>boolean){
    const keys:(keyof Draft)[]=['name','goal','source','output','skill','instruction'];
    for(const key of keys){if(typeof input[key]!=='string'||input[key].length>(key==='name'?120:6000))return reply(400,'입력 길이와 형식을 확인해주세요.');}
    const draft=Object.fromEntries(keys.map(key=>[key,input[key].trim()])) as Draft;
-   if(Object.keys(validate(draft,keys)).length||!['고객 문의 분석','자료 요약'].includes(draft.skill))return reply(400,'필수 항목과 Skill을 확인해주세요.');
+   if(Object.keys(validate(draft,keys)).length||!['고객 문의 분석','자료 요약','문안 작성'].includes(draft.skill))return reply(400,'필수 항목과 Skill을 확인해주세요.');
    let result;try{result=analyze(draft)}catch{return reply(400,'자료의 내용과 건수를 확인해주세요.');}
-   const record={schemaVersion:1,id:payload.id,submittedAt:new Date().toISOString(),consent:{accepted:true,noticeVersion:'2026-11-11'},input:draft,result};
+   if(payload.aiText!==undefined){
+    if(!verifyResult(draft,payload.aiText,payload.aiSignature,process.env.OPENAI_API_KEY??''))return reply(400,'AI 결과 확인에 실패했습니다. 결과를 다시 생성한 후 제출해주세요.');
+    Object.assign(result,{aiText:payload.aiText});
+   }
+   const record={schemaVersion:2,id:payload.id,submittedAt:new Date().toISOString(),consent:{accepted:true,noticeVersion:'2026-11-11'},input:draft,result};
    try{await write(`responses/${payload.id}.json`,JSON.stringify(record,null,2));}
    catch{return reply(502,'응답을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.');}
    return Response.json({saved:true,id:payload.id},{status:201,headers:{'Cache-Control':'no-store'}});
