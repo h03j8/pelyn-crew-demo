@@ -1,0 +1,4 @@
+import type {Result} from './model';
+export function RuleResult({result}:{result:Result}){
+ return <><p className="hint">입력한 자료의 주제와 건수만 정리한 결과입니다. AI가 작성한 문안이나 의미 분석 결과는 아닙니다.</p><div className="result-meta"><span>{result.rows.length}개 주제</span><span>명시된 건수 합계 {result.total}건</span></div>{result.table?<div className="table-wrap"><table><thead><tr><th>주제</th><th>건수</th><th>입력 내용</th></tr></thead><tbody>{result.rows.map(row=><tr key={row.topic}><td>{row.topic}</td><td>{row.count===null?'미기재':`${row.count}건`}</td><td>{row.details.join('\n')}</td></tr>)}</tbody></table></div>:<ol className="result-list">{result.rows.map(row=><li key={row.topic}><b>{row.topic}{row.count===null?'':` · ${row.count}건`}</b>{row.details.filter(detail=>detail!==row.topic).map(detail=><small key={detail}>{detail}</small>)}</li>)}</ol>}</>;
+}

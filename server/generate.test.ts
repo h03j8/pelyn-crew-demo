@@ -15,7 +15,7 @@ test('업무 목적과 자료를 AI로 전달하고 응답의 텍스트만 표�
   assert.ok(body.input.includes('컨택 문안'));assert.ok(body.instructions.includes('업무 목적'));
   return Response.json({status:'completed',output:[{type:'reasoning',summary:[]},{type:'message',content:[{type:'output_text',text:'안녕하세요, 원장님. 학생관리 리포트 파일럿 참여를 제안드립니다.'}]}]});
  };
- const response=await createGenerateHandler(config,mock)(request());const data=await response.json();
+ const response=await createGenerateHandler(config,mock,async()=> 'reserved')(request());const data=await response.json();
  assert.equal(response.status,200);assert.equal(calls,1);assert.match(data.text,/원장님/);assert.equal(verifyResult(input,data.text,data.signature,'fake-test-key'),true);
 });
 test('키 미설정·잘못된 코드·동의 없음은 유료 API를 호출하지 않는다',async()=>{
@@ -31,11 +31,21 @@ test('긴 입력과 빠진 필드를 거부한다',async()=>{
  assert.equal((await handler(request({...payload,input:{...input,goal:''}}))).status,400);
  assert.equal((await handler(request({...payload,input:{...input,source:'가'.repeat(6001)}}))).status,400);
 });
-test('API 오류·불완전 답변·빈 답변을 성공으로 표시하지 않는다',async()=>{
- for(const [upstream,status] of [[new Response('',{status:429}),429],[new Response('',{status:401}),502],[Response.json({status:'incomplete',output:[]}),502],[Response.json({status:'completed',output:[]}),502]] as const){
+test('API 오류·불완전 답변·빈 답변은 AI 성공 대신 기본 정리로 전환한다',async()=>{
+ for(const upstream of [new Response('',{status:429}),new Response('',{status:401}),Response.json({status:'incomplete',output:[]}),Response.json({status:'completed',output:[]})]){
   const mock:typeof fetch=async()=>upstream;
-  assert.equal((await createGenerateHandler(config,mock)(request())).status,status);
+  const response=await createGenerateHandler(config,mock,async()=> 'reserved')(request());
+  assert.equal(response.status,200);assert.equal((await response.json()).mode,'rules');
  }
+});
+test('예산 소진·저장소 장애·키 미연결 시 유료 API를 호출하지 않는다',async()=>{
+ let calls=0;const mock:typeof fetch=async()=>{calls++;throw Error('must not call')};
+ for(const state of ['exhausted','unavailable'] as const){
+  const response=await createGenerateHandler(config,mock,async()=>state)(request());
+  assert.equal(response.status,200);assert.equal((await response.json()).mode,'rules');
+ }
+ const response=await createGenerateHandler(()=>({key:'',code:'test-code'}),mock)(request());
+ assert.equal((await response.json()).mode,'rules');assert.equal(calls,0);
 });
 test('AI 결과를 수정하거나 다른 입력에 붙이면 서명 검증이 실패한다',()=>{
  const signature=signResult(input,'결과','fake-test-key');
