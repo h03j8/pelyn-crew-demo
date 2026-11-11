@@ -1,5 +1,5 @@
 import {put,head} from '@vercel/blob';
-import {createHandler} from '../server/responses.ts';
+import {createHandler} from '../server/responses.js';
 
 const handler=createHandler(async(path,body)=>{
  try{return await put(path,body,{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:false});}

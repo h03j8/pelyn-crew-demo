@@ -1,4 +1,4 @@
-import {analyze,validate,type Draft} from '../src/model.ts';
+import {analyze,validate,type Draft} from '../src/model.js';
 
 type Writer = (path:string,body:string)=>Promise<unknown>;
 const reply=(status:number,message:string)=>Response.json({message},{status,headers:{'Cache-Control':'no-store'}});
